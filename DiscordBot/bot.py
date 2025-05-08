@@ -34,7 +34,8 @@ class ModBot(discord.Client):
         self.group_num = None
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
-        self.under_review = {} # Map from report message IDs to the report
+        self.user_review = {} # Map from report message IDs to the report
+        self.post_review = {}
         self.reacts = { # valid reacts for the bot to respond to
             '🔨': 'ban',
             '⚠️': 'warn',
@@ -128,7 +129,7 @@ class ModBot(discord.Client):
             report_data.append("❌ to ignore the report")
             
             bot_message = await mod_channel.send("\n".join(report_data))
-            self.under_review[bot_message.id] = complete_report
+            self.user_review[bot_message.id] = complete_report
 
             
 
@@ -161,40 +162,89 @@ class ModBot(discord.Client):
         # Print a test message to the console
         print(f'{user} reacted with {payload.emoji} to message: "{message.content}"')
 
-        if message.id not in self.under_review:
+        if message.id not in self.user_review and message.id not in self.post_review:
             return
         
-        # Get the report associated with this message
-        report = self.under_review[message.id]
+       
 
-        # Check if the reaction is one of the valid reactions
-        if payload.emoji.name not in self.reacts:
-            return
-        action = self.reacts[payload.emoji.name]
-        print(f"Action: {action}")
+        if message.id in self.user_review:
+             # Get the report associated with this message
+            report = self.user_review[message.id]
 
-        # Take action based on the reaction
-        if action == 'ban':
-            banned_user = report.message.author
-            print(f"Banning user: {banned_user.name}")
-            await message.channel.send(f'{banned_user.name} has been banned from group {self.group_num}.')
-            self.under_review.pop(message.id) # Remove the report from under review
-            # await banned_user.ban(reason="User has been banned by a moderator.")
-            # await message.delete()
-            # await report.message.delete()
-        elif action == 'warn':
-            warned_user = report.message.author
-            print(f"Warning user: {warned_user.name}")
-            await message.channel.send(f'{warned_user.name} has been sent a warning through direct message.')
-            await warned_user.send(f'You have been warned for violating the rules in group {self.group_num}.')
-            self.under_review.pop(message.id) # Remove the report from under review
-            # await message.delete()
-            # await report.message.delete()
+            valid_reacts = { # valid reacts for the bot to respond to
+            '🔨': 'ban',
+            '⚠️': 'warn',
+            '❌': 'ignore',
+            }
 
-        elif action == 'ignore':
-            await message.channel.send(f'The report from {user.name} has been disregarded.')
-            self.under_review.pop(message.id)
+            # Check if the reaction is one of the valid reactions
+            if payload.emoji.name not in valid_reacts:
+                return
+            action = valid_reacts[payload.emoji.name]
+            print(f"Action: {action}")
 
+            # Take action based on the reaction
+            if action == 'ban':
+                banned_user = report.message.author
+                print(f"Banning user: {banned_user.name}")
+                bot_msg = await message.channel.send(f'{banned_user.name} has been banned from group {self.group_num}.')
+                self.post_review[bot_msg.id] = self.user_review.pop(message.id) 
+                # await banned_user.ban(reason=f"User has been banned by a moderator for {complete_report.reason}.")
+                # await message.delete()
+                # await report.message.delete()
+            elif action == 'warn':
+                warned_user = report.message.author
+                print(f"Warning user: {warned_user.name}")
+                await message.channel.send(f'{warned_user.name} has been sent a warning through direct message.')
+                await warned_user.send(f'You have been warned for violating the rules in group {self.group_num}.')
+                reacts_msg = "What should be done about this message? \n"
+                reacts_msg += "Please react to this message with one of the following: \n"
+                reacts_msg += "🗑️ to delete the message \n"
+                reacts_msg += "‼️ to add a disclaimer \n"
+                reacts_msg += "❌ to not take action \n"
+                bot_msg = await message.channel.send(reacts_msg)
+                print(reacts_msg)
+                self.post_review[bot_msg.id] = self.user_review.pop(message.id) # Remove the report from under review
+                # await message.delete()
+                # await report.message.delete()
+
+            elif action == 'ignore':
+                await message.channel.send(f'The report from {user.name} has been disregarded.')
+                self.user_review.pop(message.id)
+
+        else:
+            # Get the report associated with this message
+            report = self.post_review[message.id]
+
+            # delete message, add disclaimer, ignore
+            valid_reacts = {
+                '🗑️': 'delete',
+                '‼️': 'disclaimer',
+                '❌': 'ignore',
+            }
+
+            # Check if the reaction is one of the valid reactions
+            if payload.emoji.name not in valid_reacts:
+                return
+            action = valid_reacts[payload.emoji.name]
+            print(f"Action: {action}")
+
+            if action == 'delete':
+                message_author = report.message.author
+                await message.channel.send(f'The reported message from {message_author} has been deleted.')
+                await report.message.delete() # CHECK IN A BIT
+                self.post_review.pop(message.id)
+            elif action == 'disclaimer':
+                message_author = report.message.author
+                await message.channel.send(f'The reported message from {message_author} is receiving a disclaimer.')
+                # SEND DISCLAIMER MESSAGE IN REPLY ON CHANNEL OF REPORTED MESSAGE
+                
+
+                self.post_review.pop(message.id)
+            elif action == 'ignore':
+                await message.channel.send(f'No further action will be taken on the reported message.')
+                await message.channel.send(f'Moderation flow complete.')
+                self.post_review.pop(message.id)
 
         
     
