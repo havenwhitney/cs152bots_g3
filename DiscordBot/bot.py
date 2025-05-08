@@ -238,8 +238,11 @@ class ModBot(discord.Client):
                 message_author = report.message.author
                 await message.channel.send(f'The reported message from {message_author} is receiving a disclaimer.')
                 # SEND DISCLAIMER MESSAGE IN REPLY ON CHANNEL OF REPORTED MESSAGE
-                
-
+                disclaimer_msg = "Disclaimer: This message has been flagged for review by a moderator. \n"
+                disclaimer_msg += "Please be aware that this message may not reflect the views of the group. \n"
+                disclaimer_msg += "Further action may be taken if necessary."
+                await report.message.reply(disclaimer_msg)
+            
                 self.post_review.pop(message.id)
             elif action == 'ignore':
                 await message.channel.send(f'No further action will be taken on the reported message.')
