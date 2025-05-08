@@ -144,8 +144,7 @@ class Report:
                     "Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal."]
             else:
                 self.state = State.REPORT_COMPLETE
-                return ["Thanks for your report. Our moderation team will review the message and take necessary action, which may include", \
-                    "warning, suspension, or account removal."]
+                return ["Thanks for your report. Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal."]
 
         if self.state == State.REPORT_COMPLETE:
             reply = "Your report has been submitted. Thank you for helping us keep our community safe!"
