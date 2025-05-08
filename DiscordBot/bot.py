@@ -128,6 +128,22 @@ class ModBot(discord.Client):
         scores = self.eval_text(message.content)
         await mod_channel.send(self.code_format(scores))
 
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+    
+        # Get the guild, channel, and message from the payload
+        guild = self.get_guild(payload.guild_id)
+        channel = guild.get_channel(payload.channel_id)
+        if channel not in self.mod_channels.values():
+            return
+        message = await channel.fetch_message(payload.message_id)
+
+        # Get the user who reacted
+        user = guild.get_member(payload.user_id)
+        print(user)
+        print(payload.member)
+
+        # Print a test message to the console
+        print(f'{user} reacted with {payload.emoji} to message: "{message.content}"')
     
     def eval_text(self, message):
         ''''
