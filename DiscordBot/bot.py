@@ -96,7 +96,26 @@ class ModBot(discord.Client):
 
         # If the report is complete or cancelled, remove it from our map
         if self.reports[author_id].report_complete():
-            self.reports.pop(author_id)
+            # Send report information to mod channel for further action
+            complete_report = self.reports.pop(author_id)
+            print(self.mod_channels)
+            mod_channel = self.mod_channels[complete_report.guild_id] # CHANGE
+            reported_msg = complete_report.message
+            # print(reported_msg)
+            
+            report_data = []
+            report_data.append(f"Report from {message.author.name} ({message.author.id})")
+            report_data.append(f"Message: \n```{reported_msg.content}\n```")
+            report_data.append(f"Reason: {complete_report.reason}")
+            report_data.append(f"Category: {complete_report.category}")
+            if complete_report.should_block:
+                report_data.append("User has requested to block this user from contacting them further.")
+            else:
+                report_data.append("User has not requested to block this user from contacting them further.")
+            report_data.append("Report complete.")
+            
+            await mod_channel.send("\n".join(report_data))
+            
 
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
