@@ -140,14 +140,18 @@ class Report:
             if user_msg == "yes":
                 self.should_block = True
                 self.state = State.REPORT_COMPLETE
-                return ["Thanks for your report. This account will be blocked from contacting you further. \n", \
-                    "Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal."]
+                complete_msg = "**Your report has been recorded.**\n"
+                complete_msg += "Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal.\n"
+                complete_msg += "The user has been blocked from contacting you further."
+                return [complete_msg]
             else:
                 self.state = State.REPORT_COMPLETE
-                return ["Thanks for your report. Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal."]
+                complete_msg = "**Your report has been recorded.**\n"
+                complete_msg += "Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal."
+                return [complete_msg]
 
         if self.state == State.REPORT_COMPLETE:
-            reply = "Your report has been submitted. Thank you for helping us keep our community safe!"
+            reply = "**Your report has been submitted.** Thank you for helping us keep our community safe!"
 
             return [reply]
     

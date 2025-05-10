@@ -36,11 +36,6 @@ class ModBot(discord.Client):
         self.reports = {} # Map from user IDs to the state of their report
         self.user_review = {} # Map from report message IDs to the report
         self.post_review = {}
-        self.reacts = { # valid reacts for the bot to respond to
-            '🔨': 'ban',
-            '⚠️': 'warn',
-            '❌': 'ignore',
-        }
         
 
     async def on_ready(self):
@@ -83,6 +78,7 @@ class ModBot(discord.Client):
             '🔨': 'ban',
             '⚠️': 'warn',
             '❌': 'ignore',
+            '❓': 'unsure'
             }
         
         reacts_msg = "**What should be the next steps taken towards this post?** \n"
@@ -105,7 +101,7 @@ class ModBot(discord.Client):
             await message.channel.send(f'{banned_user.name} has been banned from group {self.group_num}.')
             bot_msg = await message.channel.send(reacts_msg)
             self.post_review[bot_msg.id] = self.user_review.pop(message.id) 
-            # await banned_user.ban(reason=f"User has been banned by a moderator for {complete_report.reason}.")
+            await report.message.channel.send(f"User {banned_user.name} has been banned by a moderator for {report.reason}.")
         elif action == 'warn':
             warned_user = report.message.author
             print(f"Warning user: {warned_user.name}")
@@ -123,6 +119,19 @@ class ModBot(discord.Client):
             await message.channel.send(f'The report from {user.name} has been disregarded.')
             await message.channel.send(f'**This report is finished.**')
             self.user_review.pop(message.id)
+        
+        elif action == 'unsure':
+            await message.channel.send(f'If the user has been flagged in the past, please forward this report to an advanced moderator for further review.')
+            await message.channel.send(f'This user will be flagged in the system and warned in case of future reports.')
+            
+            warned_user = report.message.author
+            warning = f"**Warning:** A message you have sent in group {self.group_num} has been flagged for review by a moderator. \n"
+            warning += f"This post may contain language that is considered {report.reason}. \n"
+            warning += "Please be mindful of the language you use in this group. \n"
+            warning += "If you have any questions, please reach out to a moderator."
+            await warned_user.send(warning)
+            bot_msg = await message.channel.send(reacts_msg)
+            self.post_review[bot_msg.id] = self.user_review.pop(message.id)
 
     
     async def handle_post_review(self, message, report, payload, user):
@@ -210,6 +219,7 @@ class ModBot(discord.Client):
             report_data.append("🔨 to ban the user")
             report_data.append("⚠️ to warn the user")
             report_data.append("❌ to ignore the report")
+            report_data.append("❓ if you are unsure of what to do")
             
             bot_message = await mod_channel.send("\n".join(report_data))
             self.user_review[bot_message.id] = complete_report
