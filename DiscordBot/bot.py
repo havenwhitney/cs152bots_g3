@@ -85,7 +85,7 @@ class ModBot(discord.Client):
             '❌': 'ignore',
             }
         
-        reacts_msg = "What should be done about this message? \n"
+        reacts_msg = "**What should be the next steps taken towards this post?** \n"
         reacts_msg += "Please react to this message with one of the following: \n"
         reacts_msg += "🗑️ to delete the message \n"
         reacts_msg += "‼️ to add a disclaimer \n"
@@ -110,12 +110,18 @@ class ModBot(discord.Client):
             warned_user = report.message.author
             print(f"Warning user: {warned_user.name}")
             await message.channel.send(f'{warned_user.name} has been sent a warning through direct message.')
-            await warned_user.send(f'You have been warned for violating the rules in group {self.group_num}.')
+            warning = f"**Warning:** A message you have sent in group {self.group_num} has been flagged for review by a moderator. \n"
+            warning += f"This post may contain language that is considered {report.reason}. \n"
+            warning += "Please be mindful of the language you use in this group. \n"
+            warning += "If you have any questions, please reach out to a moderator."
+            await warned_user.send(warning)
+
             bot_msg = await message.channel.send(reacts_msg)
             self.post_review[bot_msg.id] = self.user_review.pop(message.id) # Remove the report from under review
 
         elif action == 'ignore':
             await message.channel.send(f'The report from {user.name} has been disregarded.')
+            await message.channel.send(f'**This report is finished.**')
             self.user_review.pop(message.id)
 
     
@@ -140,18 +146,19 @@ class ModBot(discord.Client):
             self.post_review.pop(message.id)
         elif action == 'disclaimer':
             message_author = report.message.author
-            await message.channel.send(f'The reported message from {message_author} is receiving a disclaimer.')
+            await message.channel.send(f'The reported message from {message_author} has received a disclaimer.')
             # SEND DISCLAIMER MESSAGE IN REPLY ON CHANNEL OF REPORTED MESSAGE
-            disclaimer_msg = "Disclaimer: This message has been flagged for review by a moderator. \n"
-            disclaimer_msg += "Please be aware that this message may not reflect the views of the group. \n"
-            disclaimer_msg += "Further action may be taken if necessary."
+            disclaimer_msg = "**Disclaimer:** This message has been flagged for review by a moderator. \n"
+            disclaimer_msg += f"This post may contain language that is considered {report.reason}. \n"
             await report.message.reply(disclaimer_msg)
         
             self.post_review.pop(message.id)
         elif action == 'ignore':
             await message.channel.send(f'No further action will be taken on the reported message.')
-            await message.channel.send(f'Moderation flow complete.')
+            # await message.channel.send(f'Moderation flow complete.')
             self.post_review.pop(message.id)
+        
+        await message.channel.send(f'**This report is finished.**')
 
     
     async def handle_dm(self, message):
@@ -188,18 +195,18 @@ class ModBot(discord.Client):
             # print(reported_msg)
             
             report_data = []
-            report_data.append(f"Report from {message.author.name} ({message.author.id})")
-            report_data.append(f"Message: \n```{reported_msg.content}\n```")
-            report_data.append(f"Reason: {complete_report.reason}")
-            report_data.append(f"Category: {complete_report.category}")
+            report_data.append(f"_Report from {message.author.name} ({message.author.id})_")
+            report_data.append(f"**Message:** \n```{reported_msg.content}\n```")
+            report_data.append(f"**Reason**: {complete_report.reason}")
+            report_data.append(f"**Category**: {complete_report.category}")
+            if complete_report.has_details:
+                report_data.append("📝 **User would like to provide more details to a moderator.**")
             if complete_report.should_block:
-                report_data.append("User has requested to block this user from contacting them further.")
-            else:
-                report_data.append("User has not requested to block this user from contacting them further.")
+                report_data.append("🚫 **User has requested to block this user from contacting them further.**")
             report_data.append("Report complete. \n")
             report_data.append("If you would like to see the message in context, click on the link below:")
             report_data.append(f"https://discord.com/channels/{complete_report.guild_id}/{reported_msg.channel.id}/{reported_msg.id}\n")
-            report_data.append("To take action, react to this message with one of the following:")
+            report_data.append("**To take action**, react to this message with one of the following:")
             report_data.append("🔨 to ban the user")
             report_data.append("⚠️ to warn the user")
             report_data.append("❌ to ignore the report")

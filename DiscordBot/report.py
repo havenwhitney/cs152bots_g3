@@ -33,6 +33,7 @@ class Report:
         self.guild_id = -1
         self.reason = ""
         self.category = ""
+        self.has_details = False
         self.should_block = False
     
     async def handle_message(self, message):
@@ -123,7 +124,7 @@ class Report:
             if user_msg != "yes" and user_msg != "no":
                 return ["I'm sorry, I don't recognize that response. Please respond with `yes` or `no`."]
             if user_msg == "yes":
-                self.should_block = True
+                self.has_details = True
                 self.state = State.AWAITING_BLOCK
                 return ["Thank you! A human moderator will be reaching out to you shortly through direct message for additional details. \n", \
                 "Would you like to block this user from contacting you further? (`yes` or `no`)"]
@@ -137,8 +138,7 @@ class Report:
             if user_msg != "yes" and user_msg != "no":
                 return ["I'm sorry, I don't recognize that response. Please respond with `yes` or `no`."]
             if user_msg == "yes":
-                
-                # await message.author.block_user(message.author.id)
+                self.should_block = True
                 self.state = State.REPORT_COMPLETE
                 return ["Thanks for your report. This account will be blocked from contacting you further. \n", \
                     "Our moderation team will review the message and take necessary action, which may include warning, suspension, or account removal."]
