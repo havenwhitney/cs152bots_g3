@@ -9,13 +9,6 @@ import requests
 from report import Report
 import pdb
 
-# Set up logging to the console
-logger = logging.getLogger('discord')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
-
 # There should be a file called 'tokens.json' inside the same folder as this file
 token_path = 'tokens.json'
 if not os.path.isfile(token_path):
@@ -24,6 +17,18 @@ with open(token_path) as f:
     # If you get an error here, it means your token is formatted incorrectly. Did you put it in quotes?
     tokens = json.load(f)
     discord_token = tokens['discord']
+    os.environ["GEMINI_API_KEY"] = tokens["gemini"]
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./google-service-account.json"
+# google imports must come after the above line
+from google_genai import test_generate_gemini
+
+# Set up logging to the console
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
 
 
 class ModBot(discord.Client):
@@ -31,7 +36,7 @@ class ModBot(discord.Client):
         intents = discord.Intents.default()
         intents.message_content = True
         super().__init__(command_prefix='.', intents=intents)
-        self.group_num = None
+        self.group_num = 3
         self.mod_channels = {} # Map from guild to the mod channel id for that guild
         self.reports = {} # Map from user IDs to the state of their report
         self.user_review = {} # Map from report message IDs to the report
@@ -283,6 +288,11 @@ class ModBot(discord.Client):
         TODO: Once you know how you want to evaluate messages in your channel, 
         insert your code here! This will primarily be used in Milestone 3. 
         '''
+
+        # If a message starts with "prompt: ", generate response from genai
+        if (message.startswith("prompt: ")):
+            return test_generate_gemini(message[8:])
+        
         return message
 
     

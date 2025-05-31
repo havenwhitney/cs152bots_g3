@@ -1,0 +1,26 @@
+INSTALLING DEPENDENCIES:
+1. setup a python virtual environment (if you do not have a ./venv directory)
+
+python -m venv venv 
+
+
+2. activate your python virtual environment (need to do this each time)
+
+  - macOS/linux:   source venv/bin/activate
+  - Windows:       venv\Scripts\activate
+
+
+3. install all the needed imported packages and libraries 
+
+pip install -r requirements.txt
+
+
+4. anytime you install a new package via pip install, add it to requirements.txt 
+
+pip freeze > requirements.txt       (run this in the root dir)
+
+
+
+NECESSARY TOKEN FILES:
+  - DiscordBot/tokens.json
+  - DiscordBot/google-service-account.json
