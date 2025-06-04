@@ -248,7 +248,8 @@ class ModBot(discord.Client):
         if type == "EVAL":
             await mod_channel.send(msg)
             return
-        scores = msg.strip()
+        
+        # Otherwise we just evaluated one message
         if len(scores) > 1:
             classification = int(scores[:1])
             confidence = float(scores[2:])
@@ -307,11 +308,8 @@ class ModBot(discord.Client):
 
            
     def eval_text(self, message):
-        ''''
-        TODO: Once you know how you want to evaluate messages in your channel, 
-        insert your code here! This will primarily be used in Milestone 3. 
-        '''
-
+        # TODO: Remove the headers to each type of message except for evaluation?
+        
         # If a message starts with "prompt: ", generate response from genai
         if (message.startswith("test: ")):
             evaluate_msg_promptbased_openai(message[6:])

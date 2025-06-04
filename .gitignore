@@ -1,5 +1,6 @@
 *.log
 DiscordBot/tokens.json
 DiscordBot/google-service-account.json
+DiscordBot/evaluation_results.csv
 TABot/tokens.json
 venv

@@ -67,15 +67,11 @@ def run_evaluation_gemini(file: str) -> str:
   print(f"Loaded {len(messages)} messages from {file}")
   print("First 5 messages:", messages[:5])
   to_eval = [(msg[0], msg[1]) for msg in messages if len(msg) >= 2]
-  print(to_eval[:5])
-  
  
   # go through and evaluate each message
   eval_results = []
   for message_id, message in to_eval:
     response = evaluate_msg_promptbased_gemini(message).strip()
-    print(f"RESPONSE FOR MESSAGE ID {message_id}: {response}")
-    # response should be in the format "0 1.0" or "1 0.0"
     classification = int(response[:1])
     confidence = float(response[2:])
     eval_results.append((message_id, classification, float(confidence)))
@@ -110,14 +106,14 @@ def run_evaluation_gemini(file: str) -> str:
     accuracy_results.append((message_id, classification, ground_truth_label, confidence))
 
   # save results to a file
-  print("ACCURACY RESULTS:")
+  print("\nACCURACY RESULTS:")
   print("message_id,classification,ground_truth_label,confidence")
   print(accuracy_results)
-  # return ""
-  # with open("evaluation_results.csv", "w") as f:
-  #   f.write("message_id,classification,ground_truth_label,confidence\n")
-  #   for result in accuracy_results:
-  #     f.write(f"{result[0]},{result[1]},{result[2]},{result[3]}\n")
+
+  with open("evaluation_results.csv", "w") as f:
+    f.write("message_id,classification,ground_truth_label,confidence\n")
+    for result in accuracy_results:
+      f.write(f"{result[0]},{result[1]},{result[2]},{result[3]}\n")
 
   # return the aggregated stats of confusion matrix, recall, precision
   recall = true_pos / (true_pos + false_neg) if (true_pos + false_neg) > 0 else 0
