@@ -44,8 +44,7 @@ def evaluate_msg_promptbased_gemini(message: str) -> str:
       contents=instructions
   )
 
-  stripped = response.text.strip()
-  return stripped
+  return response.text.strip()
 
 
 def run_evaluation_gemini(file: str) -> str:

@@ -249,6 +249,7 @@ class ModBot(discord.Client):
             await mod_channel.send(msg)
             return
         
+        scores = msg
         # Otherwise we just evaluated one message
         if len(scores) > 1:
             classification = int(scores[:1])
@@ -312,8 +313,9 @@ class ModBot(discord.Client):
         
         # If a message starts with "prompt: ", generate response from genai
         if (message.startswith("test: ")):
-            evaluate_msg_promptbased_openai(message[6:])
+            prompt_response = evaluate_msg_promptbased_openai(message[6:])
             evaluate_msg_moderation_api_openai(message[6:])
+            return ["TEST", prompt_response]
             pass
 
         if (message.startswith("gemini: ")):
