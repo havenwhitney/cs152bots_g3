@@ -1,5 +1,6 @@
 # google_genai.py
 import os
+import csv
 from google import genai
 from google.genai import types
 import base64 # need this if we wanna send images and not just text
@@ -58,11 +59,17 @@ def run_evaluation_gemini(file: str) -> str:
   prefix = "../assets/"
   # join the prefix with the file name
   path = os.path.join(prefix, file)
-  with open(path, "r", encoding='utf8') as f:
-    messages = f.readlines()
+  # with open(path, "r", encoding='utf8') as f:
+  #   messages = f.readlines()
 
-  # remove ground truth labels
-  messages = [line.strip().split(",") for line in messages[1:] if line.strip()]
+  # # remove ground truth labels
+  # messages = [line.strip().split(",") for line in messages[1:]]
+
+  with open(path, "r", encoding='utf8') as f:
+    reader = csv.reader(f)
+    next(reader)  # Skip the header row
+    messages = [row for row in reader]
+
   print(f"Loaded {len(messages)} messages from {file}")
   print("First 5 messages:", messages[:5])
   to_eval = [(msg[0], msg[1]) for msg in messages if len(msg) >= 2]
@@ -110,22 +117,28 @@ def run_evaluation_gemini(file: str) -> str:
   print(accuracy_results)
 
   with open("evaluation_results.csv", "w") as f:
+    f.write(f"Evaluation results for {file}\n")
     f.write("message_id,classification,ground_truth_label,confidence\n")
     for result in accuracy_results:
       f.write(f"{result[0]},{result[1]},{result[2]},{result[3]}\n")
 
-  # return the aggregated stats of confusion matrix, recall, precision
-  recall = true_pos / (true_pos + false_neg) if (true_pos + false_neg) > 0 else 0
-  precision = true_pos / (true_pos + false_pos) if (true_pos + false_pos) > 0 else 0
-  accuracy = (true_pos + true_neg) / len(messages) if len(messages) > 0 else 0
-  confusion_matrix = {
-      "true_positive": true_pos,
-      "true_negative": true_neg,
-      "false_positive": false_pos,
-      "false_negative": false_neg,
-  }
-  print(f"Confusion Matrix: {confusion_matrix}")
-  print(f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}")
+    # return the aggregated stats of confusion matrix, recall, precision
+    recall = true_pos / (true_pos + false_neg) if (true_pos + false_neg) > 0 else 0
+    precision = true_pos / (true_pos + false_pos) if (true_pos + false_pos) > 0 else 0
+    accuracy = (true_pos + true_neg) / len(messages) if len(messages) > 0 else 0
+    confusion_matrix = {
+        "true_positive": true_pos,
+        "true_negative": true_neg,
+        "false_positive": false_pos,
+        "false_negative": false_neg,
+    }
+    print(f"Confusion Matrix: {confusion_matrix}")
+    print(f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}")
+
+    # Add results to file
+    f.write(f"Total messages: {len(messages)}\n")
+    f.write(f"Confusion Matrix: {confusion_matrix}\n")
+    f.write(f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}\n")
   
   # Create msg to return
   msg = f"Running evaluation on Gemini for file {file}:\n"
