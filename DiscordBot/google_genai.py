@@ -21,6 +21,52 @@ def test_generate_gemini(prompt: str) -> str:
   return response.text.strip()
 
 
+def evaluate_msg_promptbased_gemini(message: str) -> tuple[int, float]:
+  """
+  Uses a prompt-based approach to evaluate a message against a policy
+  This is similar to the OpenAI example but uses Gemini's capabilities
+  """
+  with open("../assets/policy.txt") as file:
+    policy = file.read()
+
+  instructions = (
+      "Answer with only a single character: 0 or 1 and a float from 0.0 to 1.0. "
+      "Make sure your response is limited to only one of those two integers.\n"
+      "Below is given a policy that describes what type of language counts as harassment or hate speech on our platform.\n"
+      "If the user inputted message violates the criteria of the policy, respond with 1, otherwise, respond with 0.\n"
+      "Then, give a confidence score for this classification. The closer to 1.0, the higher the confidence.\n\n"
+      f"{policy}\n\n"
+      f"User message: {message}"
+  )
+
+  response = client.models.generate_content(
+      model="gemini-1.5-flash",
+      contents=instructions
+  )
+
+  stripped = response.text.strip()
+  return stripped
+
+
+def run_evaluation_gemini(file: str) -> None:
+  """
+  Runs the evaluation of a dataset against the Gemini model
+  """
+  with open(file, "r") as f:
+    messages = f.readlines()
+
+  # strip ground truth labels
+
+  # go through and evaluate each message
+
+  # compare to ground truth labels
+
+  # save results to a file
+
+  # return the aggregated stats
+
+  pass
+
 # This is a simple test function that takes a single string prompt using vertex ai (currently not working)
 def test_generate_vertex(prompt: str):
     client = genai.Client(

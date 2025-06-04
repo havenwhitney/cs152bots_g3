@@ -23,6 +23,7 @@ with open(token_path) as f:
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./google-service-account.json"
 # google imports must come after the above line
 from google_genai import test_generate_gemini
+from google_genai import evaluate_msg_promptbased_gemini
 from openai_genai import evaluate_msg_promptbased_openai
 from openai_genai import evaluate_msg_moderation_api_openai
 
@@ -233,7 +234,6 @@ class ModBot(discord.Client):
             self.user_review[bot_message.id] = complete_report
 
             
-
     async def handle_channel_message(self, message):
         # Only handle messages sent in the "group-#" channel
         if not message.channel.name == f'group-{self.group_num}':
@@ -243,7 +243,25 @@ class ModBot(discord.Client):
         mod_channel = self.mod_channels[message.guild.id]
         # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"') TODO: COMMENT BACK IN LATER
         scores = self.eval_text(message.content)
-        # await mod_channel.send(self.code_format(scores)) TODO: COMMENT BACK IN LATER
+        if len(scores) > 1:
+            classification = int(scores[:1])
+            confidence = float(scores[2:])
+        else: 
+            classification = int(scores)
+            confidence = None
+        scores_formatted = (classification, confidence)
+        if classification == 0:
+            # If the message is not flagged, just return
+            return
+        elif classification == 1:
+            # Send a message to the mod channel with the classification and confidence
+            msg = f"Message from {message.author.name} ({message.author.id}) classified as hate speech."
+            msg += f"\nClassification: {classification}, Confidence: {confidence}"
+            msg += f"\nMessage content: ```{message.content}```"
+            msg += f"\nIf you would like to see the message in context, click on the link below:"
+            msg += f"\nhttps://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}\n"
+            await mod_channel.send(msg)
+            # await mod_channel.send(self.code_format(scores_formatted)) NOTE: Do we even need code_format?
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
     
@@ -283,9 +301,6 @@ class ModBot(discord.Client):
             await self.handle_post_review(message, report, payload, user)
 
            
-
-        
-    
     def eval_text(self, message):
         ''''
         TODO: Once you know how you want to evaluate messages in your channel, 
@@ -298,19 +313,29 @@ class ModBot(discord.Client):
             evaluate_msg_moderation_api_openai(message[6:])
             pass
 
-        if (message.startswith("prompt: ")):
-            return test_generate_gemini(message[8:])
+        if (message.startswith("gemini: ")):
+            return evaluate_msg_promptbased_gemini(message[8:])
+        
+        if (message.startswith("evaluation: ")):
+            # create confusion matrix based on the file given
+            return run_evaluation_gemini(message[12:])
 
         
         return message
 
     
-    def code_format(self, text):
+    def code_format(self, scores):
         ''''
         TODO: Once you know how you want to show that a message has been 
         evaluated, insert your code here for formatting the string to be 
         shown in the mod channel. 
         '''
+        msg = "This message has been classified as hate speech."
+        msg += f"\nClassification: {scores[0]}"
+        if scores[1] is not None:
+            msg += f"\nConfidence: {scores[1]:.2f}"
+        return f"```{msg}```"
+
         return "Evaluated: '" + text+ "'"
 
 
