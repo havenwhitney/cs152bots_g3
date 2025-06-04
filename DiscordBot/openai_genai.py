@@ -11,9 +11,10 @@ def evaluate_msg_promptbased_openai(message: str) -> int:
     policy = file.read()
 
   instructions = """
-  Answer with only a single character: 0 or 1. Make sure your response is limited to only one of those two integers.
+  Answer with only a single character: 0 or 1 and a float from 0.0 to 1.0. Make sure your response is limited to only one of those two integers.
   Below is given a policy that describes what type of language counts as harassment or hate speech on our platform.
-  If the user inputted message violates the criteria of the policy, respond with 1, otherwise, respond with 0\n
+  If the user inputted message violates the criteria of the policy, respond with 1, otherwise, respond with 0
+  Then, give a confidence score for this classification. The closer to 1.0, the higher the confidence.\n
   """
 
   instructions += policy
@@ -25,7 +26,7 @@ def evaluate_msg_promptbased_openai(message: str) -> int:
   )
 
   print(response.output_text)
-  return 0
+  return response.output_text.strip()
 
 # Uses the default openai moderation endpoint to detect hate speech / harassment
 def evaluate_msg_moderation_api_openai(message: str) -> int:

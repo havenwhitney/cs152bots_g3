@@ -23,6 +23,7 @@ with open(token_path) as f:
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./google-service-account.json"
 # google imports must come after the above line
 from google_genai import test_generate_gemini
+from google_genai import run_evaluation_gemini
 from google_genai import evaluate_msg_promptbased_gemini
 from openai_genai import evaluate_msg_promptbased_openai
 from openai_genai import evaluate_msg_moderation_api_openai
@@ -242,14 +243,18 @@ class ModBot(discord.Client):
         # Forward the message to the mod channel
         mod_channel = self.mod_channels[message.guild.id]
         # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"') TODO: COMMENT BACK IN LATER
-        scores = self.eval_text(message.content)
+        res = self.eval_text(message.content)
+        type, msg = res[0], res[1]
+        if type == "EVAL":
+            await mod_channel.send(msg)
+            return
+        scores = msg.strip()
         if len(scores) > 1:
             classification = int(scores[:1])
             confidence = float(scores[2:])
         else: 
             classification = int(scores)
             confidence = None
-        scores_formatted = (classification, confidence)
         if classification == 0:
             # If the message is not flagged, just return
             return
@@ -314,16 +319,19 @@ class ModBot(discord.Client):
             pass
 
         if (message.startswith("gemini: ")):
-            return evaluate_msg_promptbased_gemini(message[8:])
+            return ["GEMINI", evaluate_msg_promptbased_gemini(message[8:])]
         
         if (message.startswith("evaluation: ")):
             # create confusion matrix based on the file given
-            return run_evaluation_gemini(message[12:])
+            print("Running evaluation on file: " + message[12:])
+            msg = run_evaluation_gemini(message[12:])
+            return ["EVAL", msg]
 
         
         return message
 
-    
+    # Note from Haven: Not sure the purpose of this. eval_text has the context of the message itself, 
+    # which we want assumedly in outputting to the mod channel?
     def code_format(self, scores):
         ''''
         TODO: Once you know how you want to show that a message has been 

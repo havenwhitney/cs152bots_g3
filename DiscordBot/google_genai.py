@@ -21,7 +21,7 @@ def test_generate_gemini(prompt: str) -> str:
   return response.text.strip()
 
 
-def evaluate_msg_promptbased_gemini(message: str) -> tuple[int, float]:
+def evaluate_msg_promptbased_gemini(message: str) -> str:
   """
   Uses a prompt-based approach to evaluate a message against a policy
   This is similar to the OpenAI example but uses Gemini's capabilities
@@ -48,24 +48,96 @@ def evaluate_msg_promptbased_gemini(message: str) -> tuple[int, float]:
   return stripped
 
 
-def run_evaluation_gemini(file: str) -> None:
+def run_evaluation_gemini(file: str) -> str:
   """
   Runs the evaluation of a dataset against the Gemini model
   """
-  with open(file, "r") as f:
+
+  # NOTE: Filename we want to use is anti-lgbt-cyberbullying.csv OR anti-lgbt-cyberbullying_small.csv
+  # Format is message_id,message,ground_truth_label
+
+  prefix = "../assets/"
+  # join the prefix with the file name
+  path = os.path.join(prefix, file)
+  with open(path, "r", encoding='utf8') as f:
     messages = f.readlines()
 
-  # strip ground truth labels
-
+  # remove ground truth labels
+  messages = [line.strip().split(",") for line in messages[1:] if line.strip()]
+  print(f"Loaded {len(messages)} messages from {file}")
+  print("First 5 messages:", messages[:5])
+  to_eval = [(msg[0], msg[1]) for msg in messages if len(msg) >= 2]
+  print(to_eval[:5])
+  
+ 
   # go through and evaluate each message
+  eval_results = []
+  for message_id, message in to_eval:
+    response = evaluate_msg_promptbased_gemini(message).strip()
+    print(f"RESPONSE FOR MESSAGE ID {message_id}: {response}")
+    # response should be in the format "0 1.0" or "1 0.0"
+    classification = int(response[:1])
+    confidence = float(response[2:])
+    eval_results.append((message_id, classification, float(confidence)))
 
+  print(f"Evaluated {len(eval_results)} messages.")
+  print("First 5 evaluation results:", eval_results[:5])
+ 
   # compare to ground truth labels
+  accuracy_results = []
+  true_pos = 0
+  true_neg = 0
+  false_pos = 0
+  false_neg = 0
+  for i in range(len(messages)):
+    message_id, message, ground_truth = messages[i][0], messages[i][1], messages[i][2]
+    classification, confidence = eval_results[i][1], eval_results[i][2]
+    ground_truth_label = int(ground_truth)
+
+    # calculate accuracy
+    if classification == ground_truth_label:
+      if classification == 1:
+        true_pos += 1
+      else:
+        true_neg += 1
+    else:
+      if classification == 1:
+        false_pos += 1
+      else:
+        false_neg += 1
+    
+    # add to results
+    accuracy_results.append((message_id, classification, ground_truth_label, confidence))
 
   # save results to a file
+  print("ACCURACY RESULTS:")
+  print("message_id,classification,ground_truth_label,confidence")
+  print(accuracy_results)
+  # return ""
+  # with open("evaluation_results.csv", "w") as f:
+  #   f.write("message_id,classification,ground_truth_label,confidence\n")
+  #   for result in accuracy_results:
+  #     f.write(f"{result[0]},{result[1]},{result[2]},{result[3]}\n")
 
-  # return the aggregated stats
+  # return the aggregated stats of confusion matrix, recall, precision
+  recall = true_pos / (true_pos + false_neg) if (true_pos + false_neg) > 0 else 0
+  precision = true_pos / (true_pos + false_pos) if (true_pos + false_pos) > 0 else 0
+  accuracy = (true_pos + true_neg) / len(messages) if len(messages) > 0 else 0
+  confusion_matrix = {
+      "true_positive": true_pos,
+      "true_negative": true_neg,
+      "false_positive": false_pos,
+      "false_negative": false_neg,
+  }
+  print(f"Confusion Matrix: {confusion_matrix}")
+  print(f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}")
+  
+  # Create msg to return
+  msg = f"Running evaluation on Gemini for file {file}:\n"
+  msg += f"Confusion Matrix: {confusion_matrix}\n"
+  msg += f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}\n"
+  return msg
 
-  pass
 
 # This is a simple test function that takes a single string prompt using vertex ai (currently not working)
 def test_generate_vertex(prompt: str):
