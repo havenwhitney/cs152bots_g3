@@ -24,6 +24,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./google-service-account.json"
 # google imports must come after the above line
 from google_genai import test_generate_gemini
 from openai_genai import evaluate_msg_promptbased_openai
+from openai_genai import evaluate_msg_moderation_api_openai
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -293,7 +294,8 @@ class ModBot(discord.Client):
 
         # If a message starts with "prompt: ", generate response from genai
         if (message.startswith("test: ")):
-            # evaluate_msg_promptbased_openai(message[6:]) # commented out to save on api credits - uncomment if you wanna test
+            evaluate_msg_promptbased_openai(message[6:])
+            evaluate_msg_moderation_api_openai(message[6:])
             pass
 
         if (message.startswith("prompt: ")):

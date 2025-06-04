@@ -27,3 +27,19 @@ def evaluate_msg_promptbased_openai(message: str) -> int:
   print(response.output_text)
   return 0
 
+# Uses the default openai moderation endpoint to detect hate speech / harassment
+def evaluate_msg_moderation_api_openai(message: str) -> int:
+  response = client.moderations.create(
+    model="text-moderation-latest",
+    input=message
+  )
+
+  categories = response.results[0].categories
+  category_scores = response.results[0].category_scores 
+
+  print(f"harassment: {categories.harassment}, {category_scores.harassment}")
+  print(f"harassment/threatening: {categories.harassment_threatening}, {category_scores.harassment_threatening}")
+  print(f"hate: {categories.hate}, {category_scores.hate}")
+  print(f"hate: {categories.hate_threatening}, {category_scores.hate_threatening}\n")
+
+  return 0
