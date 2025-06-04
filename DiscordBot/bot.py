@@ -18,10 +18,12 @@ with open(token_path) as f:
     tokens = json.load(f)
     discord_token = tokens['discord']
     os.environ["GEMINI_API_KEY"] = tokens["gemini"]
+    os.environ["OPENAI_API_KEY"] = tokens["openai"]
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./google-service-account.json"
 # google imports must come after the above line
 from google_genai import test_generate_gemini
+from openai_genai import evaluate_msg_promptbased_openai
 
 # Set up logging to the console
 logger = logging.getLogger('discord')
@@ -238,9 +240,9 @@ class ModBot(discord.Client):
 
         # Forward the message to the mod channel
         mod_channel = self.mod_channels[message.guild.id]
-        await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"')
+        # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"') TODO: COMMENT BACK IN LATER
         scores = self.eval_text(message.content)
-        await mod_channel.send(self.code_format(scores))
+        # await mod_channel.send(self.code_format(scores)) TODO: COMMENT BACK IN LATER
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
     
@@ -290,8 +292,13 @@ class ModBot(discord.Client):
         '''
 
         # If a message starts with "prompt: ", generate response from genai
+        if (message.startswith("test: ")):
+            # evaluate_msg_promptbased_openai(message[6:]) # commented out to save on api credits - uncomment if you wanna test
+            pass
+
         if (message.startswith("prompt: ")):
             return test_generate_gemini(message[8:])
+
         
         return message
 
