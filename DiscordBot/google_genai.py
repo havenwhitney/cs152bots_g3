@@ -30,7 +30,7 @@ def evaluate_msg_promptbased_gemini(message: str) -> str:
     policy = file.read()
 
   instructions = (
-      "Answer with only a single character: 0 or 1 and a float from 0.0 to 1.0. "
+      "Answer with only a single character: 0 or 1 and a float from 0.0 to 1.0. Make sure there is a space between the int and float in the output"
       "Make sure your response is limited to only one of those two integers.\n"
       "Below is given a policy that describes what type of language counts as harassment or hate speech on our platform.\n"
       "If the user inputted message violates the criteria of the policy, respond with 1, otherwise, respond with 0.\n"

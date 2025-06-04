@@ -248,27 +248,58 @@ class ModBot(discord.Client):
         if type == "EVAL":
             await mod_channel.send(msg)
             return
-        
-        scores = msg
-        # Otherwise we just evaluated one message
-        if len(scores) > 1:
-            classification = int(scores[:1])
-            confidence = float(scores[2:])
-        else: 
-            classification = int(scores)
-            confidence = None
-        if classification == 0:
-            # If the message is not flagged, just return
-            return
-        elif classification == 1:
-            # Send a message to the mod channel with the classification and confidence
-            msg = f"Message from {message.author.name} ({message.author.id}) classified as hate speech."
-            msg += f"\nClassification: {classification}, Confidence: {confidence}"
-            msg += f"\nMessage content: ```{message.content}```"
-            msg += f"\nIf you would like to see the message in context, click on the link below:"
-            msg += f"\nhttps://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}\n"
-            await mod_channel.send(msg)
-            # await mod_channel.send(self.code_format(scores_formatted)) NOTE: Do we even need code_format?
+
+        if type == "AUTODETECT":
+          openai_prompt_res = res[2]
+          openai_mod_res = res[3]
+          gemini_prompt_res = res[4]
+
+          openai_p_classifier, openai_p_confidence = openai_prompt_res.split(" ")
+          gemini_p_classifier, gemini_p_confidence = gemini_prompt_res.split(" ")
+
+          embed = discord.Embed(
+            title="Automatic LGBT Violation Report",
+            description=f"Message content: {message.content}",
+          )
+
+          embed.set_thumbnail(url=message.author.avatar.url)
+          embed.add_field(name="OpenAI Policy Violation Detection:", value=f"Classifier: {openai_p_classifier}, Confidence: {openai_p_confidence}", inline=False)
+          embed.add_field(name="Gemini Policy Violation Detection:", value=f"Classifier: {gemini_p_classifier}, Confidence: {gemini_p_confidence}", inline=False)
+
+          descriptors = ["Safe", "Potential Violation", "Probable Violation", "Clear Violation"]
+          colors = [
+              discord.Color.from_rgb(0, 255, 0),     # green
+              discord.Color.from_rgb(255, 255, 0),   # yellow
+              discord.Color.from_rgb(255, 165, 0),  # orange
+              discord.Color.from_rgb(255, 0, 0)      # red
+          ]
+          
+          harm_counter = 0
+          if openai_p_classifier == "1":
+              harm_counter += 1 
+          if gemini_p_classifier == "1":
+              harm_counter += 1
+          for key in openai_mod_res:
+              if openai_mod_res[key][0]:
+                  harm_counter += 1
+                  break
+          
+          mod_api_report = ""
+          for key in openai_mod_res:
+              mod_api_report += f"{key}: {openai_mod_res[key][0]}\n"
+
+          embed.add_field(name="OpenAI Moderation API Detection:", value=mod_api_report, inline=False)
+          embed.set_author(name=descriptors[harm_counter])
+          embed.color = colors[harm_counter]
+
+          footer_msg = f"Message Author: {message.author.name}\n"
+          footer_msg += "If you would like to see the message in context, click on the link below:\n"
+          footer_msg += f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}\n"
+          embed.add_field(name="Message Details", value=footer_msg)
+
+          await mod_channel.send(embed=embed)
+
+
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
     
@@ -312,23 +343,25 @@ class ModBot(discord.Client):
         # TODO: Remove the headers to each type of message except for evaluation?
         
         # If a message starts with "prompt: ", generate response from genai
-        if (message.startswith("test: ")):
+        if (message.startswith("openai: ")):
             prompt_response = evaluate_msg_promptbased_openai(message[6:])
             evaluate_msg_moderation_api_openai(message[6:])
-            return ["TEST", prompt_response]
-            pass
+            return ["OPENAI", prompt_response]
 
-        if (message.startswith("gemini: ")):
+        elif (message.startswith("gemini: ")):
             return ["GEMINI", evaluate_msg_promptbased_gemini(message[8:])]
         
-        if (message.startswith("evaluation: ")):
+        elif (message.startswith("evaluation: ")):
             # create confusion matrix based on the file given
             print("Running evaluation on file: " + message[12:])
             msg = run_evaluation_gemini(message[12:])
             return ["EVAL", msg]
 
-        
-        return message
+        else:
+            openai_prompt_response = evaluate_msg_promptbased_openai(message)
+            openai_moderation_response = evaluate_msg_moderation_api_openai(message)
+            gemini_prompt_response = evaluate_msg_promptbased_gemini(message)
+            return ["AUTODETECT", message, openai_prompt_response, openai_moderation_response, gemini_prompt_response]
 
     # Note from Haven: Not sure the purpose of this. eval_text has the context of the message itself, 
     # which we want assumedly in outputting to the mod channel?

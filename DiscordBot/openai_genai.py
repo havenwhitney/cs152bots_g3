@@ -11,10 +11,12 @@ def evaluate_msg_promptbased_openai(message: str) -> int:
     policy = file.read()
 
   instructions = """
-  Answer with only a single character: 0 or 1 and a float from 0.0 to 1.0. Make sure your response is limited to only one of those two integers.
+  Answer only in the following format int, float: 0 or 1 and a float from 0.0 to 1.0. Make sure your response is limited to only one of those two integers for
+  the first value. Also make sure that there is a space between the int and float.
   Below is given a policy that describes what type of language counts as harassment or hate speech on our platform.
   If the user inputted message violates the criteria of the policy, respond with 1, otherwise, respond with 0
-  Then, give a confidence score for this classification. The closer to 1.0, the higher the confidence.\n
+  Then, give a confidence score for this classification between 0.0 and 1.0. The closer to 1.0, the the higher you are confident in correctly
+  classifying the message.\n
   """
 
   instructions += policy
@@ -25,11 +27,11 @@ def evaluate_msg_promptbased_openai(message: str) -> int:
     input=message
   )
 
-  print(response.output_text)
+  print(response.output_text.strip())
   return response.output_text.strip()
 
 # Uses the default openai moderation endpoint to detect hate speech / harassment
-def evaluate_msg_moderation_api_openai(message: str) -> int:
+def evaluate_msg_moderation_api_openai(message: str) -> dict:
   response = client.moderations.create(
     model="text-moderation-latest",
     input=message
@@ -38,9 +40,12 @@ def evaluate_msg_moderation_api_openai(message: str) -> int:
   categories = response.results[0].categories
   category_scores = response.results[0].category_scores 
 
-  print(f"harassment: {categories.harassment}, {category_scores.harassment}")
-  print(f"harassment/threatening: {categories.harassment_threatening}, {category_scores.harassment_threatening}")
-  print(f"hate: {categories.hate}, {category_scores.hate}")
-  print(f"hate: {categories.hate_threatening}, {category_scores.hate_threatening}\n")
+  data = {
+    "harrassment": (categories.harassment, category_scores.harassment),
+    "harrassment_threatening": (categories.harassment_threatening, category_scores.harassment_threatening),
+    "hate": (categories.hate, category_scores.hate),
+    "hate_threatening": (categories.hate_threatening, category_scores.hate_threatening)
+  }
 
-  return 0
+  print(data)
+  return data
