@@ -262,7 +262,8 @@ class ModBot(discord.Client):
             description=f"Message content: {message.content}",
           )
 
-          embed.set_thumbnail(url=message.author.avatar.url)
+          if (message.author.avatar):
+            embed.set_thumbnail(url=message.author.avatar.url)
           embed.add_field(name="OpenAI Policy Violation Detection:", value=f"Classifier: {openai_p_classifier}, Confidence: {openai_p_confidence}", inline=False)
           embed.add_field(name="Gemini Policy Violation Detection:", value=f"Classifier: {gemini_p_classifier}, Confidence: {gemini_p_confidence}", inline=False)
 
