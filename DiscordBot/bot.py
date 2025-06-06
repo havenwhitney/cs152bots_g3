@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 import os
 import json
+import csv
 import logging
 import re
 import requests
@@ -242,7 +243,7 @@ class ModBot(discord.Client):
 
         # Forward the message to the mod channel
         mod_channel = self.mod_channels[message.guild.id]
-        # await mod_channel.send(f'Forwarded message:\n{message.author.name}: "{message.content}"') TODO: COMMENT BACK IN LATER
+        
         res = self.eval_text(message.content)
         type, msg = res[0], res[1]
         if type == "EVAL":
@@ -341,21 +342,16 @@ class ModBot(discord.Client):
 
            
     def eval_text(self, message):
-        # TODO: Remove the headers to each type of message except for evaluation?
-        
-        # If a message starts with "prompt: ", generate response from genai
-        if (message.startswith("openai: ")):
-            prompt_response = evaluate_msg_promptbased_openai(message[6:])
-            evaluate_msg_moderation_api_openai(message[6:])
-            return ["OPENAI", prompt_response]
-
-        elif (message.startswith("gemini: ")):
-            return ["GEMINI", evaluate_msg_promptbased_gemini(message[8:])]
-        
-        elif (message.startswith("evaluation: ")):
+     
+        if (message.startswith("gemini eval: ")):
             # create confusion matrix based on the file given
-            print("Running evaluation on file: " + message[12:])
-            msg = run_evaluation_gemini(message[12:])
+            print("Running gemini evaluation on file: " + message[13:])
+            msg = self.run_evaluation(message[13:], "gemini")
+            return ["EVAL", msg]
+        elif (message.startswith("openai eval: ")):
+            # create confusion matrix based on the file given
+            print("Running openai evaluation on file: " + message[13:])
+            msg = self.run_evaluation(message[13:], "openai")
             return ["EVAL", msg]
 
         else:
@@ -364,21 +360,107 @@ class ModBot(discord.Client):
             gemini_prompt_response = evaluate_msg_promptbased_gemini(message)
             return ["AUTODETECT", message, openai_prompt_response, openai_moderation_response, gemini_prompt_response]
 
-    # Note from Haven: Not sure the purpose of this. eval_text has the context of the message itself, 
-    # which we want assumedly in outputting to the mod channel?
-    def code_format(self, scores):
-        ''''
-        TODO: Once you know how you want to show that a message has been 
-        evaluated, insert your code here for formatting the string to be 
-        shown in the mod channel. 
-        '''
-        msg = "This message has been classified as hate speech."
-        msg += f"\nClassification: {scores[0]}"
-        if scores[1] is not None:
-            msg += f"\nConfidence: {scores[1]:.2f}"
-        return f"```{msg}```"
+    
+    def run_evaluation(self, file: str, model: str) -> str:
+        """
+        Runs the evaluation of a dataset against the specified model (OpenAI or Gemini)
+        :param file: The filename of the dataset to evaluate
+        :param model: The model to use for evaluation ("openai" or "gemini")
+        """
 
-        return "Evaluated: '" + text+ "'"
+        prefix = "../assets/"
+        # join the prefix with the file name
+        path = os.path.join(prefix, file)
+
+        with open(path, "r", encoding='utf8') as f:
+            reader = csv.reader(f)
+            next(reader)  # Skip the header row
+            messages = [row for row in reader]
+
+        num_columns = len(messages[0]) if messages else 0
+
+        print(f"Loaded {len(messages)} messages from {file}")
+        print("First 5 messages:", messages[:5])
+        if num_columns == 3:
+            to_eval = [(msg[0], msg[1]) for msg in messages if len(msg) >= 2]
+        elif num_columns == 4:
+            # ignore first index
+            to_eval = [(msg[1], msg[2]) for msg in messages if len(msg) >= 3]
+        
+        # evaluate each message
+        eval_results = []
+        for message_id, message in to_eval:
+            if model == "openai":
+                response = evaluate_msg_promptbased_openai(message).strip()
+            elif model == "gemini":
+                response = evaluate_msg_promptbased_gemini(message).strip()
+            classification = int(response[:1])
+            confidence = float(response[2:])
+            eval_results.append((message_id, classification, float(confidence)))
+
+        print(f"Evaluated {len(eval_results)} messages.")
+        print("First 5 evaluation results:", eval_results[:5])
+        
+        # compare to ground truth labels
+        accuracy_results = []
+        true_pos = 0
+        true_neg = 0
+        false_pos = 0
+        false_neg = 0
+        for i in range(len(messages)):
+            if num_columns == 3:
+                message_id, message, ground_truth = messages[i][0], messages[i][1], messages[i][2]
+            elif num_columns == 4:
+                message_id, message, ground_truth = messages[i][1], messages[i][2], messages[i][3]
+            classification, confidence = eval_results[i][1], eval_results[i][2]
+            ground_truth_label = int(ground_truth)
+
+            # calculate accuracy
+            if classification == ground_truth_label:
+                if classification == 1:
+                    true_pos += 1
+                else:
+                    true_neg += 1
+            else:
+                if classification == 1:
+                    false_pos += 1
+                else:
+                    false_neg += 1
+            
+            # add to results
+            accuracy_results.append((message_id, classification, ground_truth_label, confidence))
+
+        # save results to a file
+        with open("evaluation_results.csv", "w") as f:
+            f.write(f"Evaluation results with model {model} for {file}\n")
+            f.write("message_id,classification,ground_truth_label,confidence\n")
+            for result in accuracy_results:
+                f.write(f"{result[0]},{result[1]},{result[2]},{result[3]}\n")
+
+            # return the aggregated stats of confusion matrix, recall, precision
+            recall = true_pos / (true_pos + false_neg) if (true_pos + false_neg) > 0 else 0
+            precision = true_pos / (true_pos + false_pos) if (true_pos + false_pos) > 0 else 0
+            accuracy = (true_pos + true_neg) / len(messages) if len(messages) > 0 else 0
+            confusion_matrix = {
+                "true_positive": true_pos,
+                "true_negative": true_neg,
+                "false_positive": false_pos,
+                "false_negative": false_neg,
+            }
+            print(f"Confusion Matrix: {confusion_matrix}")
+            print(f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}")
+
+            # Add results to file
+            f.write(f"Total messages: {len(messages)}\n")
+            f.write(f"Confusion Matrix: {confusion_matrix}\n")
+            f.write(f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}\n")
+        
+        # Create msg to return
+        msg = f"Running evaluation on {model} for file {file}:\n"
+        msg += f"Total messages: {len(messages)}\n"
+        msg += f"Confusion Matrix: {confusion_matrix}\n"
+        msg += f"Recall: {recall:.2f}, Precision: {precision:.2f}, Accuracy: {accuracy:.2f}\n"
+        return msg
 
 
 client = ModBot()

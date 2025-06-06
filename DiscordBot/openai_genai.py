@@ -27,7 +27,6 @@ def evaluate_msg_promptbased_openai(message: str) -> int:
     input=message
   )
 
-  print(response.output_text.strip())
   return response.output_text.strip()
 
 # Uses the default openai moderation endpoint to detect hate speech / harassment
